@@ -2,11 +2,13 @@ package com.andysong.server
 
 import android.app.Service
 import android.content.Intent
-import android.os.IBinder
-import android.os.RemoteCallbackList
-import android.os.RemoteException
+import android.content.pm.PackageManager
+import android.os.*
 import android.util.Log
-import java.util.Date
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.util.*
 
 /**
  * @name： ProcessCommunication
@@ -20,7 +22,11 @@ class MyService: Service() {
     private val listeners = RemoteCallbackList<IReceiveMsgListener>()
 
     override fun onBind(intent: Intent?): IBinder {
-       return MyBinder()
+       return when(intent?.getIntExtra("bigDataVersion",-1)){
+           0 -> MyBinder()
+           1 -> MyBigDataBinder()
+           else -> MyBinder()
+       }
     }
 
     inner class MyBinder : IMsgManager.Stub(){
@@ -50,6 +56,43 @@ class MyService: Service() {
                 Log.e(TAG, "unregisterReceiveListener: 解除成功")
             }else {
                 Log.e(TAG, "unregisterReceiveListener: 解除失败")
+            }
+        }
+
+        //package鉴权
+        override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+            val check = checkCallingPermission("app.service.permission")
+            Log.e(TAG, "onTransact: check-$check,thread-${Thread.currentThread()}")
+            if (check == PackageManager.PERMISSION_DENIED){
+                return false;
+            }
+            val packages = packageManager.getPackagesForUid(getCallingUid())
+            //判断一下调用的包名
+            if (false == packages?.first()?.startsWith("com.andysong")){
+                return false
+            }
+            return super.onTransact(code, data, reply, flags)
+        }
+    }
+
+    inner class MyBigDataBinder : IOptionsBigData.Stub(){
+        override fun transactFileDescriptor(pfd: ParcelFileDescriptor?) {
+           val file = File(cacheDir,"file.mp4")
+            try {
+                val inputStream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
+                file.delete()
+                file.createNewFile()
+                val stream = FileOutputStream(file)
+                val buffer = ByteArray(1024)
+                var len: Int
+                // 将inputStream中的数据写入到file中
+                while (inputStream.read(buffer).also { len = it } != -1) {
+                    stream.write(buffer, 0, len)
+                }
+                stream.close()
+                pfd?.close()
+            }catch (e:IOException){
+                e.printStackTrace()
             }
         }
 

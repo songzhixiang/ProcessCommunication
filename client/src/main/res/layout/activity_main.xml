@@ -21,4 +21,9 @@
         android:layout_height="wrap_content"
         android:text="发送信息" />
 
+    <Button
+        android:id="@+id/btn_bigdata"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="发送文件" />
 </LinearLayout>
