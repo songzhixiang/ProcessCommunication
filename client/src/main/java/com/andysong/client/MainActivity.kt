@@ -5,16 +5,19 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
+import android.os.MemoryFile
 import android.os.ParcelFileDescriptor
 import android.os.RemoteException
 import android.util.Log
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import com.andysong.server.IMemoryFileInterface
 import com.andysong.server.IMsgManager
 import com.andysong.server.IOptionsBigData
 import com.andysong.server.IReceiveMsgListener
 import com.andysong.server.Msg
 import java.io.File
+import java.io.IOException
 
 const val TAG = "Client"
 
@@ -25,6 +28,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sendBigDataButton: Button
     private var iOptionsBigData:IOptionsBigData? = null
     private var iMsgManager:IMsgManager? = null
+
+    private var iMemoryFileInterface: IMemoryFileInterface? = null
     private var isBind = false
 
     private val connection = object :ServiceConnection{
@@ -119,5 +124,41 @@ class MainActivity : AppCompatActivity() {
         iOptionsBigData?.transactFileDescriptor(fileDescriptor)
         fileDescriptor.close()
         // 调用AIDL接口，将文件描述符的读端 传递给 接收方
+    }
+
+
+    /**
+     * 发送小型数据
+     */
+    private fun sendSmallData(){
+        if (iMemoryFileInterface == null){
+            return
+        }
+        val bytes = AssetUtils.openAssets(this, "small.jpg")
+        try {
+            iMemoryFileInterface?.sendImage(bytes)
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }catch (e: RemoteException) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * 这里使用共享内存方式，但是文件占内存的大小，那么共享内存就会占多大
+     */
+    private fun sendBigData(){
+        val inputStream = assets.open("large.jpg")
+        val bytes = inputStream.readBytes()
+        //创建MemoryFile
+        val memoryFile = MemoryFile("client_image", bytes.size)
+        // 向MemoryFile中写入字节数组
+        memoryFile.writeBytes(bytes,0,0,bytes.size)
+        //获取MemoryFile对应的FileDescriptor
+        val fileDescriptor = MemoryFileUtils.getFileDescriptor(memoryFile)
+        //根据FileDescriptor创建ParcelFileDescriptor
+        val descriptor = ParcelFileDescriptor.dup(fileDescriptor)
+        //发送数据
+        iMemoryFileInterface?.client2server(descriptor)
     }
 }

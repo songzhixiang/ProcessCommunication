@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.*
@@ -96,6 +97,46 @@ class MyService: Service() {
             }
         }
 
+    }
+
+    private val fileCallback = RemoteCallbackList<IMemoryFileListener>()
+
+    inner class MyFileImageBinder : IMemoryFileInterface.Stub(){
+        override fun sendImage(data: ByteArray?) {
+            Log.e(TAG, "发送图片 bytes size:${data?.size}")
+        }
+
+        override fun client2server(pdf: ParcelFileDescriptor?) {
+            //从ParcelFileDescriptor中获取FileDescriptor
+            val fileDescriptor = pdf?.fileDescriptor
+            //根据FileDescriptor构建InputStream对象
+            val inputStream = FileInputStream(fileDescriptor)
+            //从InputStream中读取字节数组
+            val readBytes = inputStream.readBytes()
+            Log.e(TAG, "client2server: readBytes == ${readBytes.size}")
+        }
+
+        override fun registerCallback(listener: IMemoryFileListener?) {
+            fileCallback.register(listener)
+        }
+
+        override fun unregisterCallback(listener: IMemoryFileListener?) {
+            fileCallback.unregister(listener)
+        }
+
+    }
+
+    private fun server2client(pdf: ParcelFileDescriptor?){
+        val n = fileCallback.beginBroadcast()
+        for (i in 0 until n){
+            val broadcastItem = fileCallback.getBroadcastItem(i)
+            try {
+                broadcastItem?.server2client(pdf)
+            } catch (e: RemoteException) {
+                e.printStackTrace()
+            }
+        }
+        fileCallback.finishBroadcast()
     }
 
     companion object{
