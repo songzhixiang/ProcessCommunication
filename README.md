@@ -32,3 +32,30 @@ android:exported="true">
 </service>
 
 ```
+
+### Jar包安装
+```groovy
+
+dependencies {
+
+    compileOnly 'androidx.appcompat:appcompat:1.4.1'
+}
+makeJar
+def zipFile = file('build/intermediates/aar_main_jar/release/classes.jar')
+task makeJar(type: Jar){
+    form zipTree(zipFile)
+    archiveBaseName = "sdk"
+    destinationDirectory = file("build/outputs/")
+    manifest {
+        attributes(
+                'Implementation-Title': "${project.name}",
+                'Built-Data': new Date().getDateTimeString(),
+                'Build-With' :
+                        "gradle-${project.getGradle().getGradleVersion()},grovvy-${GroovySystem.getVersion()}",
+                'Created-By' :
+                        'Java ' + System.getProperty('java.version') + '(' + System.getProperty('java.vendor') + ')')
+    }
+}
+makeJar.dependsOn(build)
+
+```

@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "ProcessCommunication"
 include ':client'
 include ':server'
+include ':standerSdk'
